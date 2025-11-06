@@ -1,0 +1,238 @@
+<div class="container mx-auto p-4 md:p-8">
+  
+  @if(isLoading()) {
+    <div class="fixed inset-0 bg-white bg-opacity-75 flex flex-col items-center justify-center z-50">
+      <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500"></div>
+      <p class="mt-4 text-purple-600 font-semibold">Cargando Datos...</p>
+    </div>
+  }
+
+  <div class="card mb-8">
+    <h1 class="text-3xl font-bold text-center text-purple-600 mb-4">Análisis de Tickets de Salida con IA</h1>
+    <p class="text-gray-600 text-center mb-6">Introduce la URL de una hoja de cálculo de Google con datos de tickets de salida para visualizar y analizar las respuestas.</p>
+    <div class="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4">
+      <input type="text" [value]="sheetUrl()" (input)="onUrlInput($event)" class="flex-grow w-full p-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Pega aquí la URL de tu hoja de cálculo de Google (¡Asegúrate de que sea Pública!)">
+      <button (click)="loadData()" class="w-full md:w-auto px-6 py-3 bg-purple-600 text-white font-semibold rounded-md hover:bg-purple-700 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500">Cargar Datos</button>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-8 rounded-md" role="alert">
+      <p class="font-bold">Error</p>
+      <p>{{ errorMessage() }}</p>
+    </div>
+  }
+
+  @if (dataLoaded()) {
+    <div class="card mb-8">
+      <h2 class="text-2xl font-semibold text-purple-600 mb-4">Filtros</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div>
+          <label for="startDate" class="block text-sm font-medium text-gray-700">Fecha de Inicio</label>
+          <input type="date" id="startDate" [value]="startDate()" (change)="onFilterChange($event, 'startDate')" class="mt-1 block w-full p-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500">
+        </div>
+        <div>
+          <label for="endDate" class="block text-sm font-medium text-gray-700">Fecha de Fin</label>
+          <input type="date" id="endDate" [value]="endDate()" (change)="onFilterChange($event, 'endDate')" class="mt-1 block w-full p-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500">
+        </div>
+        <div>
+          <label for="materiaFilter" class="block text-sm font-medium text-gray-700">Materia</label>
+          <select id="materiaFilter" [value]="selectedMateria()" (change)="onFilterChange($event, 'materia')" class="mt-1 block w-full p-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500">
+            <option value="">Todas</option>
+            @for(materia of filterOptions().materias; track materia) {
+              <option [value]="materia">{{ materia }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label for="paraleloFilter" class="block text-sm font-medium text-gray-700">Paralelo</label>
+          <select id="paraleloFilter" [value]="selectedParalelo()" (change)="onFilterChange($event, 'paralelo')" class="mt-1 block w-full p-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500">
+            <option value="">Todos</option>
+            @for(paralelo of filterOptions().paralelos; track paralelo) {
+              <option [value]="paralelo">{{ paralelo }}</option>
+            }
+          </select>
+        </div>
+      </div>
+      <div class="mt-6 flex justify-end">
+        <button (click)="applyFilters()" class="px-6 py-3 bg-purple-600 text-white font-semibold rounded-md hover:bg-purple-700 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500">
+          Aplicar Filtros
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="card bg-purple-100 border-l-4 border-purple-600"><div class="text-sm font-medium text-gray-500">Respuestas Totales</div><div class="text-3xl font-bold text-purple-800">{{ totalResponses() }}</div></div>
+        <div class="card bg-blue-100 border-l-4 border-blue-600"><div class="text-sm font-medium text-gray-500">Puntuación Promedio</div><div class="text-3xl font-bold text-blue-800">{{ averageScore() }}</div></div>
+        <div class="card bg-green-100 border-l-4 border-green-600"><div class="text-sm font-medium text-gray-500">Comprensión Promedio</div><div class="text-xl font-bold text-green-800">{{ averageComprehension() }}</div></div>
+    </div>
+    
+    <div class="card mb-8">
+        <h2 class="text-2xl font-semibold text-purple-600 mb-4 border-b pb-2">Análisis Cualitativo con IA</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <!-- Learnings -->
+            <div>
+                <div class="flex justify-between items-center mb-2"><h3 class="text-lg font-semibold text-gray-800">Aprendizajes Clave</h3><button (click)="generateSummary('learnings')" [disabled]="learnings().loading" class="px-3 py-1 text-sm bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 disabled:bg-gray-400">{{ learnings().loading ? 'Generando...' : 'Resumir (IA)' }}</button></div>
+                <div class="text-gray-700 bg-gray-50 p-4 rounded-md min-h-40 border border-blue-200 markdown-content" [innerHTML]="learnings().content || learningsPlaceholder"></div>
+            </div>
+            <!-- Confused Points -->
+            <div>
+                <div class="flex justify-between items-center mb-2"><h3 class="text-lg font-semibold text-gray-800">Puntos Confusos</h3><button (click)="generateSummary('confused')" [disabled]="confused().loading" class="px-3 py-1 text-sm bg-red-500 text-white font-semibold rounded-md hover:bg-red-600 disabled:bg-gray-400">{{ confused().loading ? 'Generando...' : 'Resumir (IA)' }}</button></div>
+                <div class="text-gray-700 bg-gray-50 p-4 rounded-md min-h-40 border border-red-200 markdown-content" [innerHTML]="confused().content || confusedPlaceholder"></div>
+            </div>
+            <!-- Questions -->
+            <div>
+                <div class="flex justify-between items-center mb-2"><h3 class="text-lg font-semibold text-gray-800">Preguntas Pendientes</h3><button (click)="generateSummary('questions')" [disabled]="questions().loading" class="px-3 py-1 text-sm bg-yellow-500 text-white font-semibold rounded-md hover:bg-yellow-600 disabled:bg-gray-400">{{ questions().loading ? 'Generando...' : 'Resumir (IA)' }}</button></div>
+                <div class="text-gray-700 bg-gray-50 p-4 rounded-md min-h-40 border border-yellow-200 markdown-content" [innerHTML]="questions().content || questionsPlaceholder"></div>
+            </div>
+            <!-- Suggestions -->
+            <div>
+                <div class="flex justify-between items-center mb-2"><h3 class="text-lg font-semibold text-gray-800">Sugerencias de Ayuda</h3><button (click)="generateSummary('suggestions')" [disabled]="suggestions().loading" class="px-3 py-1 text-sm bg-green-500 text-white font-semibold rounded-md hover:bg-green-600 disabled:bg-gray-400">{{ suggestions().loading ? 'Generando...' : 'Resumir (IA)' }}</button></div>
+                <div class="text-gray-700 bg-gray-50 p-4 rounded-md min-h-40 border border-green-200 markdown-content" [innerHTML]="suggestions().content || suggestionsPlaceholder"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div class="card"><h3 class="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Distribución de Comprensión</h3><div #comprehensionChart class="relative h-80"></div></div>
+        <div class="card"><h3 class="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Distribución de Compromiso</h3><div #engagementChart class="relative h-80"></div></div>
+        <div class="card lg:col-span-2"><h3 class="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Distribución de Satisfacción (1-10)</h3><div #scoreChart class="relative h-80"></div></div>
+    </div>
+    
+    <div class="card mb-8">
+        <div class="flex justify-between items-center mb-4 border-b pb-2">
+            <h2 class="text-2xl font-semibold text-red-600">Estudiantes que Necesitan Atención Prioritaria</h2>
+            <button (click)="togglePriorityList()" class="px-4 py-2 text-gray-800 font-semibold rounded-md transition-colors" [class]="isPriorityListVisible() ? 'bg-red-600 text-white' : 'bg-gray-300 hover:bg-gray-400'">
+                {{ isPriorityListVisible() ? 'Ocultar Lista' : 'Mostrar Lista' }}
+            </button>
+        </div>
+        @if (isPriorityListVisible()) {
+            <div class="divide-y divide-gray-100">
+                @for(student of priorityStudents(); track student.name + student.fecha) {
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center py-3 px-2 hover:bg-red-50">
+                        <div class="mb-2 sm:mb-0">
+                            <p class="font-bold text-gray-800">{{ student.name }}</p>
+                            <p class="text-sm text-gray-600">({{ student.materia }} - {{ student.paralelo }}) - {{ student.fecha }}</p>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <span class="text-xs font-semibold text-white px-2 py-1 rounded-full" [class]="student.badgeColor">{{ student.razon }}</span>
+                        </div>
+                    </div>
+                } @empty {
+                    <p class="text-gray-500 mt-4">¡Felicidades! Ningún estudiante cumple con los criterios de atención prioritaria en este filtro.</p>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Lesson Plan Generator -->
+    <div class="card mb-8">
+        <div class="flex flex-wrap justify-between items-center mb-4 border-b pb-2 gap-4">
+            <h2 class="text-2xl font-semibold text-indigo-600">Generador de Plan de Clase de Refuerzo</h2>
+            <div class="flex gap-2">
+                <button (click)="openModal()" [disabled]="!selectedMateria() || lessonPlan().loading" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700 disabled:bg-gray-400">{{ lessonPlan().loading ? 'Generando...' : 'Generar Plan (IA)' }}</button>
+                @if(lessonPlan().content && !lessonPlan().loading) {
+                    <button (click)="exportToPDF('lesson-plan-content', 'Plan_de_Clase')" class="px-4 py-2 bg-red-500 text-white font-semibold rounded-md hover:bg-red-600">PDF</button>
+                }
+            </div>
+        </div>
+        <p class="text-sm text-gray-500 mb-4">{{ selectedMateria() ? 'Haz clic para generar un plan de clase basado en el feedback para: ' + selectedMateria() : 'Selecciona una materia específica en los filtros para habilitar esta función.' }}</p>
+        <div id="lesson-plan-content" class="text-gray-700 bg-gray-50 p-4 rounded-md min-h-20 border border-indigo-200 markdown-content" [innerHTML]="lessonPlan().content || lessonPlanPlaceholder"></div>
+    </div>
+    
+    <!-- Student Guide Generator -->
+    <div class="card mb-8">
+        <div class="flex flex-wrap justify-between items-center mb-4 border-b pb-2 gap-4">
+            <h2 class="text-2xl font-semibold text-green-600">Generador de Guía para el Estudiante</h2>
+            <div class="flex gap-2">
+                <button (click)="generateStudentGuide()" [disabled]="!lessonPlan().content || studentGuide().loading" class="px-4 py-2 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 disabled:bg-gray-400">{{ studentGuide().loading ? 'Generando...' : 'Generar Guía (IA)' }}</button>
+                @if(studentGuide().content && !studentGuide().loading) {
+                    <button (click)="exportToPDF('student-guide-content', 'Guia_del_Estudiante')" class="px-4 py-2 bg-red-500 text-white font-semibold rounded-md hover:bg-red-600">PDF</button>
+                }
+            </div>
+        </div>
+        <p class="text-sm text-gray-500 mb-4">{{ !lessonPlan().content ? 'Genera primero el Plan de Clase para habilitar esta función.' : '¡Listo! Haz clic en "Generar Guía (IA)" para crear un recurso para tus estudiantes.' }}</p>
+        <div id="student-guide-content" class="text-gray-700 bg-gray-50 p-4 rounded-md min-h-20 border border-green-200 markdown-content" [innerHTML]="studentGuide().content || studentGuidePlaceholder"></div>
+    </div>
+    
+    <div class="card">
+        <div class="flex justify-between items-center mb-4 border-b pb-2">
+            <h2 class="text-2xl font-semibold text-purple-600">Datos Crudos Filtrados</h2>
+            <button (click)="toggleRawData()" class="px-4 py-2 text-gray-800 font-semibold rounded-md transition-colors" [class]="isRawDataVisible() ? 'bg-purple-600 text-white' : 'bg-gray-300 hover:bg-gray-400'">
+                {{ isRawDataVisible() ? 'Ocultar Datos' : 'Mostrar Datos' }}
+            </button>
+        </div>
+        @if(isRawDataVisible()) {
+            <div class="table-container">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            @for(header of dataService.requiredHeaders; track header) {
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ header }}</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @for(row of filteredData(); track row['Email Address'] + row.Timestamp) {
+                            <tr>
+                                @for(header of dataService.requiredHeaders; track header) {
+                                    <td class="px-6 py-4 whitespace-normal text-sm text-gray-900">{{ formatCell(row[header]) }}</td>
+                                }
+                            </tr>
+                        } @empty {
+                            <tr><td [colSpan]="dataService.requiredHeaders.length" class="text-center py-4 text-gray-500">No hay datos disponibles para los filtros seleccionados.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+  }
+
+  <!-- Modal for Lesson Plan Details -->
+  @if(isModalVisible()) {
+    <div class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 flex items-center justify-center p-4">
+        <div class="card w-full max-w-lg">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-indigo-600">Detalles de la Próxima Clase</h3>
+                <button (click)="closeModal()" class="text-gray-500 hover:text-gray-800">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <p class="text-sm text-gray-600">Completa esto para generar un plan **híbrido** de refuerzo y contenido nuevo.</p>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Tema Principal de la Próxima Clase <span class="text-red-500">*</span></label>
+                    <input type="text" (input)="modalNextTopic.set($any($event.target).value)" [value]="modalNextTopic()" class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Cantidad de Estudiantes <span class="text-red-500">*</span></label>
+                    <input type="number" (input)="modalNumStudents.set($any($event.target).value)" [value]="modalNumStudents()" class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Duración de la Clase (minutos) <span class="text-red-500">*</span></label>
+                    <input type="number" (input)="modalClassDuration.set($any($event.target).value)" [value]="modalClassDuration()" class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Resultado de Aprendizaje de la Materia <span class="text-red-500">*</span></label>
+                    <textarea (input)="modalMateriaOutcome.set($any($event.target).value)" [value]="modalMateriaOutcome()" rows="2" class="mt-1 block w-full p-2 border border-gray-300 rounded-md"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Resultado de Aprendizaje de la Unidad <span class="text-red-500">*</span></label>
+                    <textarea (input)="modalUnitOutcome.set($any($event.target).value)" [value]="modalUnitOutcome()" rows="2" class="mt-1 block w-full p-2 border border-gray-300 rounded-md"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Producto de Aprendizaje de la Clase (Opcional)</label>
+                    <textarea (input)="modalClassProduct.set($any($event.target).value)" [value]="modalClassProduct()" rows="2" class="mt-1 block w-full p-2 border border-gray-300 rounded-md"></textarea>
+                </div>
+            </div>
+            @if(modalErrorMessage()) {
+                <p class="text-sm text-red-500 mt-2">{{ modalErrorMessage() }}</p>
+            }
+            <div class="mt-6 flex justify-end">
+                <button (click)="generateLessonPlan()" class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700">Generar Plan Ahora</button>
+            </div>
+        </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,5 @@
+{
+  "name": "Análisis de Tickets de Salida con IA",
+  "description": "Una herramienta avanzada para que los educadores analicen los datos de los tickets de salida de los estudiantes desde Google Sheets. Proporciona gráficos visuales, resúmenes cualitativos impulsados por IA, identifica a los estudiantes que necesitan apoyo y genera planes de lecciones de refuerzo.",
+  "requestFramePermissions": []
+}
